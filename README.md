@@ -22,8 +22,8 @@ pip install pandas numpy seaborn ultralytics
 
 - [下載預訓練模型和建立資料夾目錄結構](#下載預訓練模型和建立資料夾目錄結構)
 - [轉換照片格式](#轉換照片格式)
-- [訓練 YOLOv7 模型](#訓練YOLOv7模型)
-- [訓練 YOLOv8 模型](#訓練YOLOv8模型)
+- [訓練 YOLOv7 模型](#訓練-yolov7-模型)
+- [訓練 YOLOv8 模型](#訓練-yolov8-模型)
 
 --- 
 
