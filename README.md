@@ -187,3 +187,6 @@ model.export()
 ```python
 display(Image(filename="/content/runs/detect/predict2/maksssksksss89.png"))
 ```
+
+![image](https://github.com/YU-TING-HU/Image_Audio_ObjectDetection/assets/169147511/b727b45f-befa-47d2-a1a3-f4ea5394d572)
+
