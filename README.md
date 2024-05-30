@@ -224,7 +224,7 @@ pip install torch torchaudio seaborn matplotlib numpy scikit-learn
 
 1. [**資料探勘**：](#1-資料探勘)呈現音訊檔案的波形圖和頻譜圖。
 2. [**資料預處理**：](#2-資料預處理)將音訊檔案轉換為頻譜圖圖片，並拆分為模型的訓練集和測試集。
-3. [**CNN模型**：](#3-CNN模型)建構一個可以分類多類別圖片的卷積神經網路(CNN for multi-class image classification)。
+3. [**CNN模型**：](#3-CNN模型)建構一個可以多類別分類圖片的卷積神經網路(CNN for multi-class image classification)。
 4. [**模型訓練**：](#4-模型訓練)訓練CNN模型。
 5. [**模型測試**：](#5-模型測試)評估模型分類結果。
 
@@ -312,7 +312,7 @@ for f in wav_filenames:
 
 ### 3. CNN模型
 
-建構用於分類多類別圖片的卷積神經網路(CNN for multi-class image classification)，對頻譜圖圖片進行分類。
+建構用於多類別分類圖片的卷積神經網路(CNN for multi-class image classification)，對頻譜圖圖片進行分類。
 
 ```python
 import torch
