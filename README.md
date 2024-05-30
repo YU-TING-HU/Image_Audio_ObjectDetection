@@ -1,3 +1,9 @@
+跳至 [Object Detection using YOLOv7 and YOLOv8](#object-detection-using-yolov7-and-yolov8)
+
+跳至 [Audio Classification with CNN](#audio-classification-with-cnn)
+
+---
+
 # Object Detection using YOLOv7 and YOLOv8
 
 使用 YOLOv7 和 YOLOv8 模型偵測圖片上的人是否戴口罩。
@@ -190,3 +196,229 @@ display(Image(filename="/content/runs/detect/predict2/maksssksksss89.png"))
 
 ![image](https://github.com/YU-TING-HU/Image_Audio_ObjectDetection/assets/169147511/b727b45f-befa-47d2-a1a3-f4ea5394d572)
 
+---
+
+# Audio Classification with CNN
+
+使用卷積神經網路(CNN)做音訊分類，辨識心跳聲是否異常。
+
+## 目錄
+
+- [套件](#使用套件)
+- [分析流程](#資料分析流程)
+
+## 使用套件
+
+- `torch`
+- `torchaudio`
+- `seaborn`
+- `matplotlib`
+- `numpy`
+- `sklearn`
+
+```sh
+pip install torch torchaudio seaborn matplotlib numpy scikit-learn
+```
+
+## 資料分析流程
+
+1. [**資料探勘**：](#1-資料探勘)呈現音訊檔案的波形圖和頻譜圖。
+2. [**資料預處理**：](#2-資料預處理)將音訊檔案轉換為頻譜圖圖片，並拆分為模型的訓練集和測試集。
+3. [**CNN模型**：](#3-CNN模型)建構一個可以分類多類別圖片的卷積神經網路(CNN for multi-class image classification)。
+4. [**模型訓練**：](#4-模型訓練)訓練CNN模型。
+5. [**模型測試**：](#5-模型測試)評估模型分類結果。
+
+### 1. 資料探勘
+
+呈現音訊檔案的波形圖和頻譜圖結構。
+
+```python
+import torchaudio
+import seaborn as sns
+import matplotlib.pyplot as plt
+import torch
+
+def plot_waveform(waveform, sample_rate):
+    waveform = waveform.numpy()
+    num_channels, num_frames = waveform.shape
+    time_axis = torch.arange(0, num_frames) / sample_rate
+    figure, axes = plt.subplots(num_channels, 1)
+    if num_channels == 1:
+        axes = [axes]
+    for c in range(num_channels):
+        axes[c].plot(time_axis, waveform[c], linewidth=1)
+        axes[c].grid(True)
+        if num_channels > 1:
+            axes[c].set_ylabel(f"Channel {c+1}")
+    figure.suptitle("waveform")
+    plt.show(block=False)
+
+def plot_specgram(waveform, sample_rate, file_path = 'test2.png'):
+    waveform = waveform.numpy()
+    num_channels, num_frames = waveform.shape
+    fig, axes = plt.subplots(num_channels, 1)
+    fig.set_size_inches(10, 10)
+    if num_channels == 1:
+        axes = [axes]
+    for c in range(num_channels):
+        axes[c].specgram(waveform[c], Fs=sample_rate)
+        if num_channels > 1:
+            axes[c].set_ylabel(f"Channel {c+1}")
+    plt.gca().set_axis_off()
+    plt.gca().axes.get_xaxis().set_visible(False)
+    plt.gca().axes.get_yaxis().set_visible(False)
+    plt.savefig(file_path, bbox_inches='tight', pad_inches = 0)
+
+wav_file = '/content/drive/MyDrive/065_CNN_AudioClassification/set_a/extrahls__201101070953.wav'
+data_waveform, sr = torchaudio.load(wav_file)
+data_waveform.size()
+
+plot_waveform(data_waveform, sample_rate=sr)
+
+spectogram = torchaudio.transforms.Spectrogram()(data_waveform)
+spectogram.size()
+plot_specgram(waveform=data_waveform, sample_rate=sr)
+```
+
+### 2. 資料預處理
+
+音訊檔案被轉換為頻譜圖圖片，並被拆分為訓練集和測試集，作為 CNN 的 input。
+
+```python
+import torchaudio
+import os
+import random
+
+wav_path = '/content/drive/MyDrive/065_CNN_AudioClassification/set_a'
+wav_filenames = os.listdir(wav_path)
+random.shuffle(wav_filenames)
+
+ALLOWED_CLASSES = ['normal', 'murmur', 'extrahls', 'artifact']
+for f in wav_filenames:
+    class_type = f.split('_')[0]
+    f_index = wav_filenames.index(f)
+    target_path = 'train' if f_index < 140 else 'test'
+    class_path = f"{target_path}/{class_type}"
+    file_path = f"{wav_path}/{f}"
+    f_basename = os.path.basename(f)
+    f_basename_wo_ext = os.path.splitext(f_basename)[0]
+    target_file_path = f"{class_path}/{f_basename_wo_ext}.png"
+    if (class_type in ALLOWED_CLASSES):
+        if not os.path.exists(class_path):
+            os.makedirs(class_path)
+        data_waveform, sr = torchaudio.load(file_path)
+        plot_specgram(waveform=data_waveform, sample_rate=sr, file_path=target_file_path)
+```
+
+### 3. CNN模型
+
+建構用於分類多類別圖片的卷積神經網路(CNN for multi-class image classification)，對頻譜圖圖片進行分類。
+
+```python
+import torch
+import torchvision
+import torchvision.transforms as transforms
+import torch.nn as nn
+import torch.nn.functional as F
+
+transform = transforms.Compose(
+    [transforms.Resize((100,100)),
+    transforms.Grayscale(num_output_channels=1),
+    transforms.ToTensor(),
+    transforms.Normalize((0.5, ), (0.5, ))])
+
+batch_size = 4
+trainset = torchvision.datasets.ImageFolder(root='train', transform=transform)
+trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True)
+testset = torchvision.datasets.ImageFolder(root='test', transform=transform)
+testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size, shuffle=True)
+
+CLASSES = ['artifact', 'extrahls', 'murmur', 'normal']
+NUM_CLASSES = len(CLASSES)
+
+class ImageMulticlassClassificationNet(nn.Module):
+    def __init__(self) -> None:
+        super().__init__()
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=6, kernel_size= 3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(in_channels=6, out_channels= 16, kernel_size=3, padding=1)
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(100*100, 128)
+        self.fc2 = nn.Linear(128, 64)
+        self.fc3 = nn.Linear(64, NUM_CLASSES)
+        self.relu = nn.ReLU()
+        self.softmax = nn.LogSoftmax()
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.pool(x)
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.pool(x)
+        x = self.flatten(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.relu(x)
+        x = self.fc3(x)
+        x = self.softmax(x)
+        return x
+
+model = ImageMulticlassClassificationNet()
+```
+
+### 4. 模型訓練
+
+使用訓練集訓練 CNN，並使用 Adam 優化模型。
+
+```python
+import numpy as np
+from sklearn.metrics import accuracy_score, confusion_matrix
+import seaborn as sns
+
+loss_fn = nn.CrossEntropyLoss()
+optimizer = torch.optim.Adam(model.parameters())
+losses_epoch_mean = []
+NUM_EPOCHS = 100
+
+for epoch in range(NUM_EPOCHS):
+    losses_epoch = []
+    for i, data in enumerate(trainloader, 0):
+        inputs, labels = data
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = loss_fn(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        losses_epoch.append(loss.item())
+    losses_epoch_mean.append(np.mean(losses_epoch))
+    print(f'Epoch {epoch}/{NUM_EPOCHS}, Loss: {np.mean(loss
+
+es_epoch):.4f}')
+
+sns.lineplot(x=list(range(len(losses_epoch_mean))), y=losses_epoch_mean)
+```
+
+### 5. 模型測試
+
+在測試集上使用準確率、混淆矩陣評估模型。
+
+```python
+y_test = []
+y_test_hat = []
+
+for i, data in enumerate(testloader, 0):
+    inputs, y_test_temp = data
+    with torch.no_grad():
+        y_test_hat_temp = model(inputs).round()
+
+    y_test.extend(y_test_temp.numpy())
+    y_test_hat.extend(y_test_hat_temp.numpy())
+
+acc = accuracy_score(y_test, np.argmax(y_test_hat, axis=1))
+print(f'Accuracy: {acc*100:.2f} %')
+
+cm = confusion_matrix(y_test, np.argmax(y_test_hat, axis=1))
+sns.heatmap(cm, annot=True, xticklabels=CLASSES, yticklabels=CLASSES)
+```
